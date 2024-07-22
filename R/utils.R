@@ -502,5 +502,23 @@ ncc.corr<-function(centroid,newdata)
     return(pr)
 }
 
+ncc.corr.raw<-function(centroid,newdata)
+{
+    ## a) reduce centroid and newdata to common genes
+    genes<-intersect(rownames(centroid),rownames(newdata))
+    cx<-centroid[genes,]
+    bx<-newdata[genes,]
+    
+    ## b) calculate correlation for each centroid to each sample
+    dd<-matrix(nrow=ncol(bx),ncol=ncol(cx),dimnames=list(colnames(bx),colnames(cx)))
+    for (i in 1:ncol(bx)){
+        for(j in 1:ncol(cx)){
+            dd[i,j]<-1-cor(cx[,j],bx[,i], use = "complete.obs")
+        }}
+    
+    return(dd)
+}
+
+
 
 options("error"=geterrmessage)
