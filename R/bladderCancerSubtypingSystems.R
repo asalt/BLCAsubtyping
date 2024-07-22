@@ -130,6 +130,46 @@ baylor.predict <- function(Exp, Gpl = NULL, Symbol = "Symbol"){
 
 }
 
+baylor.predict.raw <- function(Exp, Gpl = NULL, Symbol = "Symbol"){
+  # this one isn't right
+
+  if(is.null(Gpl)) {
+    Gpl <- data.frame("Probe.ID" = rownames(Exp), 
+                      "Gene.Symbol" = rownames(Exp), 
+                      stringsAsFactors = F, row.names = rownames(Exp))
+  } else {
+    Gpl[, symbol] <- as.character(Gpl[, symbol])
+    if(any(is.na(Gpl[, symbol]))) Gpl <- Gpl[-is.na(Gpl[, symbol]), ]
+  }
+  if(!("matrix" %in% class(Exp))) {
+    stop("`Exp` must be a matrix.")
+   }
+
+  G <- intersect(rownames(Exp), rownames(Gpl))
+  Exp <- Exp[G, ]
+  Gpl <- Gpl[G, ]
+
+  # this isn't right
+  geneID <- rownames(Gpl)[which(Gpl[, 'Gene.Symbol'] %in% as.character(baylor.genes[, "Symbol"]))]
+  geneExp <- Exp[geneID, ]
+  
+  hc <- baylor.hcfun(baylor.dfuncc(t(as.matrix(baylor.standardize(geneExp)))))
+  hc.clusters <- cutree(hc, k = 2)
+  
+  tstat <- apply(geneExp[, names(hc.clusters)], 1, function(z) t.test(z~hc.clusters)$statistic)
+  symbol2type <- baylor.genes[, 3]
+  names(symbol2type) <- baylor.genes[, 1]
+  
+  if(diff(sapply(split(tstat, symbol2type[Gpl[geneID, Symbol]]),median)) < 0){ 
+    CNAM <- c("Basal", "Differentiated")
+  }else{
+    CNAM <- c("Differentiated", "Basal")}
+
+  return(hc.clusters)
+
+}
+
+
 chapelHill.predict <- function(Exp, Gpl = NULL, Symbol = "Symbol", nmin = 10, get_posterior = F){
   Exp <- cit.probesDataToSymbolData(Exp, Gpl, Symbol)
   
@@ -191,6 +231,15 @@ lund.predict <- function(Exp, Gpl=NULL, Symbol="Symbol", rowcentering=TRUE, nmin
   return(Lund.subtype)
 }
 
+lund.predict.raw <- function(Exp, Gpl=NULL, Symbol="Symbol", rowcentering=TRUE, nmin=100, ExplicitClassName = T){
+  
+  Exp <- cit.probesDataToSymbolData(Exp, Gpl, Symbol, classification.system = "Lund")
+  Exp <- t(scale(t(Exp), scale = F))
+  Lund.dist.mat <- ncc.corr.raw(lund.centroids, Exp)
+  # Lund.subtype[which(Lund.subtype %in% c("GU-Inf1", "GU-Inf2"))] <- "GU-Inf"
+  return(Lund.dist.mat)
+}
+
 
 MDA.predict <- function(Exp, Gpl = NULL, Symbol = "Symbol", nmin = 2000){
   
@@ -242,6 +291,16 @@ TCGA.predict <- function(Exp, Gpl=NULL, Symbol="Symbol"){
   names(TCGA.subtype) <- colnames(Exp)
   
   return(TCGA.subtype)
+
+}
+
+TCGA.predict.raw <- function(Exp, Gpl=NULL, Symbol="Symbol"){
+  Exp <- cit.probesDataToSymbolData(Exp,Gpl,Symbol,classification.system="TCGA")
+  G <- intersect(rownames(tcga.centroids),rownames(Exp))
+  
+  TCGA.subtype.raw <- cor(Exp[G,], tcga.centroids[G, -c(1,2)], use = "complete.obs")
+  
+  return(TCGA.subtype.raw)
 
 }
 
